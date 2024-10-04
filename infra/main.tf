@@ -50,6 +50,8 @@ resource "aws_lb_target_group" "app_tg" {
   port     = 80
   protocol = "HTTP"
   vpc_id   = "vpc-037c0fa51acc1368b"  # Substitua pelo ID da sua VPC
+
+  target_type = "ip"
 }
 
 # Criação de um Listener para o ALB
