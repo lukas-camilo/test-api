@@ -12,14 +12,91 @@ terraform {
   }
 }
 
-# Criação de um cluster ECS
-resource "aws_ecs_cluster" "main" {
-  name = "my-ecs-cluster"
+################################ ALB ################################
+
+# Criação de um Security Group para o ALB
+resource "aws_security_group" "alb_sg" {
+  name        = "alb-sg"
+  description = "Allow HTTP traffic"
+  vpc_id      = "vpc-037c0fa51acc1368b"  # Substitua pelo ID da sua VPC
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
+
+# Criação do Load Balancer
+resource "aws_lb" "app_lb" {
+  name               = "app-lb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb_sg.id]
+  subnets            = ["subnet-07954d01d2b0b3ff3"]  # Substitua pelos IDs dos seus subnets
+}
+
+# Criação de um Target Group para o ALB
+resource "aws_lb_target_group" "app_tg" {
+  name     = "app-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = "vpc-037c0fa51acc1368b"  # Substitua pelo ID da sua VPC
+}
+
+# Criação de um Listener para o ALB
+resource "aws_lb_listener" "app_listener" {
+  load_balancer_arn = aws_lb.app_lb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app_tg.arn
+  }
+}
+
+################################ ECR ################################
 
 # Criação de um repositório ECR
 resource "aws_ecr_repository" "app" {
   name = "my-spring-native-app"
+}
+
+################################ ECS ################################
+
+# Criação de um Security Group para o ECS
+resource "aws_security_group" "ecs_sg" {
+  name        = "ecs-sg"
+  description = "Allow traffic from ALB"
+  vpc_id      = "vpc-037c0fa51acc1368b"  # Substitua pelo ID da sua VPC
+
+  ingress {
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]  # Permitir tráfego do ALB
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# Criação de um cluster ECS
+resource "aws_ecs_cluster" "main" {
+  name = "my-ecs-cluster"
 }
 
 # Criação de uma task definition para o ECS
@@ -52,11 +129,19 @@ resource "aws_ecs_service" "app" {
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = 1
   launch_type     = "FARGATE"
+
   network_configuration {
     subnets         = [
         "subnet-07954d01d2b0b3ff3"
     ]
+    security_groups = [aws_security_group.ecs_sg.id] # Security Group para o ECS
     assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.app_tg.arn
+    container_name   = "my-app-container"
+    container_port   = 8080
   }
 }
 
