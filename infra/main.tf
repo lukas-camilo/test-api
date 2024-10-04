@@ -41,7 +41,7 @@ resource "aws_lb" "app_lb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = ["subnet-07954d01d2b0b3ff3"]  # Substitua pelos IDs dos seus subnets
+  subnets            = ["subnet-07e598f791a16216b", "subnet-063d05a879a7ced1b"]  # Substitua pelos IDs dos seus subnets
 }
 
 # Criação de um Target Group para o ALB
@@ -131,9 +131,7 @@ resource "aws_ecs_service" "app" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = [
-        "subnet-07954d01d2b0b3ff3"
-    ]
+    subnets         = ["subnet-07e598f791a16216b", "subnet-063d05a879a7ced1b"]
     security_groups = [aws_security_group.ecs_sg.id] # Security Group para o ECS
     assign_public_ip = true
   }
