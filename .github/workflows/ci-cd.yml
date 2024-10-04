@@ -135,7 +135,7 @@ jobs:
       env:
         AWS_REGION: us-east-1
         CLUSTER_NAME: my-ecs-cluster
-        SERVICE_NAME: my-ecs-service
+        SERVICE_NAME: my-app-service
         IMAGE_TAG: ${{ github.sha }}
       run: |
         aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --force-new-deployment --region $AWS_REGION
