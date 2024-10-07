@@ -166,3 +166,72 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
+
+################################ API Gateway ################################
+
+# Criação do API Gateway REST API
+resource "aws_api_gateway_rest_api" "api" {
+  name        = "my-api"
+  description = "API Gateway for ALB"
+}
+
+# Criação de um recurso no API Gateway
+resource "aws_api_gateway_resource" "api_resource" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_rest_api.api.root_resource_id
+  path_part   = "api/test"
+}
+
+# Criação de um método GET no recurso do API Gateway
+resource "aws_api_gateway_method" "api_method" {
+  rest_api_id   = aws_api_gateway_rest_api.api.id
+  resource_id   = aws_api_gateway_resource.api_resource.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+# Integração do API Gateway com o ALB
+resource "aws_api_gateway_integration" "api_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.api.id
+  resource_id             = aws_api_gateway_resource.api_resource.id
+  http_method             = aws_api_gateway_method.api_method.http_method
+  integration_http_method = "GET"
+  type                    = "HTTP"
+  uri                     = aws_lb.app_lb.dns_name  # URL do ALB
+
+  # Mapeamento de resposta
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+# Criação de uma resposta para o método GET
+resource "aws_api_gateway_method_response" "api_method_response" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.api_resource.id
+  http_method = aws_api_gateway_method.api_method.http_method
+  status_code = "200"
+}
+
+# Criação de uma resposta de integração
+resource "aws_api_gateway_integration_response" "api_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.api_resource.id
+  http_method = aws_api_gateway_method.api_method.http_method
+  status_code = aws_api_gateway_method_response.api_method_response.status_code
+}
+
+# Criação de um deployment para o API Gateway
+resource "aws_api_gateway_deployment" "api_deployment" {
+  depends_on = [aws_api_gateway_integration.api_integration]
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  stage_name  = "prod"
+}
+
+# Criação de uma permissão para o API Gateway invocar o ALB
+resource "aws_lambda_permission" "api_gateway_permission" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lb.app_lb.arn
+  principal     = "apigateway.amazonaws.com"
+}
