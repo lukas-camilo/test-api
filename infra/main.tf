@@ -179,7 +179,7 @@ resource "aws_api_gateway_rest_api" "api" {
 resource "aws_api_gateway_resource" "api_resource" {
   rest_api_id = aws_api_gateway_rest_api.api.id
   parent_id   = aws_api_gateway_rest_api.api.root_resource_id
-  path_part   = "api/test"
+  path_part   = "myapp"
 }
 
 # Criação de um método GET no recurso do API Gateway
