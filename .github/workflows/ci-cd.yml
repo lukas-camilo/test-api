@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch: # Permite execução manual do pipeline
 
 jobs:
   build:
@@ -88,7 +89,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs:  provision-resource
+    needs: provision-resource
 
     steps:
     - name: Checkout code
@@ -147,3 +148,29 @@ jobs:
         SERVICE_NAME: my-app-service
       run: |
         aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --force-new-deployment --region $AWS_REGION
+
+  destroy-infra:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' # Executa apenas manualmente
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: '${{ secrets.AWS_ACCESS_KEY_ID }}'
+          aws-secret-access-key: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+          aws-region: us-east-1
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.0.0
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./infra
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve
+        working-directory: ./infra
