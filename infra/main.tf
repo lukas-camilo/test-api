@@ -52,6 +52,15 @@ resource "aws_lb_target_group" "app_tg" {
   vpc_id   = "vpc-037c0fa51acc1368b"  # Substitua pelo ID da sua VPC
 
   target_type = "ip"
+
+  health_check {
+    path                = "/actuator/health"  # Verifique se o caminho está correto
+    interval            = 30                  # Intervalo entre os health checks
+    timeout             = 5                   # Tempo limite para o health check
+    healthy_threshold   = 2                   # Número de health checks bem-sucedidos para marcar como saudável
+    unhealthy_threshold = 2                   # Número de health checks com falha para marcar como não saudável
+    matcher             = "200"               # Código de resposta esperado
+  }
 }
 
 # Criação de um Listener para o ALB
