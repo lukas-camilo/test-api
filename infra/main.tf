@@ -184,31 +184,37 @@ resource "aws_api_gateway_rest_api" "api" {
   description = "API Gateway for ALB"
 }
 
-# Criação de um recurso no API Gateway
-resource "aws_api_gateway_resource" "api_resource" {
+# Criação do recurso /api/test no API Gateway
+resource "aws_api_gateway_resource" "api_test_resource" {
   rest_api_id = aws_api_gateway_rest_api.api.id
   parent_id   = aws_api_gateway_rest_api.api.root_resource_id
-  path_part   = "myapp"
+  path_part   = "api"
 }
 
-# Criação de um método GET no recurso do API Gateway
-resource "aws_api_gateway_method" "api_method" {
+# Criação do sub-recurso /test no API Gateway
+resource "aws_api_gateway_resource" "api_test_subresource" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_resource.api_test_resource.id
+  path_part   = "test"
+}
+
+# Criação do método GET para o recurso /api/test
+resource "aws_api_gateway_method" "get_api_test" {
   rest_api_id   = aws_api_gateway_rest_api.api.id
-  resource_id   = aws_api_gateway_resource.api_resource.id
+  resource_id   = aws_api_gateway_resource.api_test_subresource.id
   http_method   = "GET"
   authorization = "NONE"
 }
 
-# Integração do API Gateway com o ALB
-resource "aws_api_gateway_integration" "api_integration" {
+# Integração do método GET com um backend (por exemplo, um ALB ou Lambda)
+resource "aws_api_gateway_integration" "get_api_test_integration" {
   rest_api_id             = aws_api_gateway_rest_api.api.id
-  resource_id             = aws_api_gateway_resource.api_resource.id
-  http_method             = aws_api_gateway_method.api_method.http_method
+  resource_id             = aws_api_gateway_resource.api_test_subresource.id
+  http_method             = aws_api_gateway_method.get_api_test.http_method
   integration_http_method = "GET"
-  type                    = "HTTP"
-  uri                     = "http://${aws_lb.app_lb.dns_name}/"
+  type                    = "HTTP" # ou "AWS_PROXY" se for Lambda
+  uri                     = "http://${aws_lb.app_lb.dns_name}/" # URL do ALB ou outro backend
 
-  # Mapeamento de resposta
   request_templates = {
     "application/json" = "{\"statusCode\": 200}"
   }
@@ -218,27 +224,27 @@ resource "aws_api_gateway_integration" "api_integration" {
 }
 
 # Criação de uma resposta para o método GET
-resource "aws_api_gateway_method_response" "api_method_response" {
+resource "aws_api_gateway_method_response" "get_api_test_response" {
   rest_api_id = aws_api_gateway_rest_api.api.id
-  resource_id = aws_api_gateway_resource.api_resource.id
-  http_method = aws_api_gateway_method.api_method.http_method
+  resource_id = aws_api_gateway_resource.api_test_subresource.id
+  http_method = aws_api_gateway_method.get_api_test.http_method
   status_code = "200"
 }
 
 # Criação de uma resposta de integração
-resource "aws_api_gateway_integration_response" "api_integration_response" {
+resource "aws_api_gateway_integration_response" "get_api_test_integration_response" {
   rest_api_id = aws_api_gateway_rest_api.api.id
-  resource_id = aws_api_gateway_resource.api_resource.id
-  http_method = aws_api_gateway_method.api_method.http_method
-  status_code = aws_api_gateway_method_response.api_method_response.status_code
+  resource_id = aws_api_gateway_resource.api_test_subresource.id
+  http_method = aws_api_gateway_method.get_api_test.http_method
+  status_code = aws_api_gateway_method_response.get_api_test_response.status_code
 
   # Adicionando dependência explícita
-  depends_on = [aws_api_gateway_integration.api_integration]
+  depends_on = [aws_api_gateway_integration.get_api_test_integration]
 }
 
 # Criação de um deployment para o API Gateway
 resource "aws_api_gateway_deployment" "api_deployment" {
-  depends_on = [aws_api_gateway_integration.api_integration]
+  depends_on  = [aws_api_gateway_integration.get_api_test_integration]
   rest_api_id = aws_api_gateway_rest_api.api.id
   stage_name  = "prod"
 }
