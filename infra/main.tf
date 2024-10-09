@@ -64,6 +64,9 @@ resource "aws_lb_listener" "app_listener" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.app_tg.arn
   }
+
+  # Adicionando dependência explícita
+  depends_on = [aws_lb.app_lb, aws_lb_target_group.app_tg]
 }
 
 ################################ ECR ################################
@@ -122,6 +125,9 @@ resource "aws_ecs_task_definition" "app" {
       ]
     }
   ])
+
+  # Adicionando dependência explícita
+  depends_on = [aws_ecr_repository.app, aws_iam_role.ecs_task_execution_role]
 }
 
 # Criação de um serviço ECS
@@ -143,6 +149,9 @@ resource "aws_ecs_service" "app" {
     container_name   = "my-app-container"
     container_port   = 8080
   }
+
+  # Adicionando dependência explícita
+  depends_on = [aws_lb_target_group.app_tg, aws_ecs_task_definition.app]
 }
 
 # Criação de uma role para o ECS
@@ -197,12 +206,15 @@ resource "aws_api_gateway_integration" "api_integration" {
   http_method             = aws_api_gateway_method.api_method.http_method
   integration_http_method = "GET"
   type                    = "HTTP"
-  uri                     = aws_lb.app_lb.dns_name  # URL do ALB
+  uri                     = "http://${aws_lb.app_lb.dns_name}/"
 
   # Mapeamento de resposta
   request_templates = {
     "application/json" = "{\"statusCode\": 200}"
   }
+
+  # Adicionando dependência explícita
+  depends_on = [aws_lb.app_lb]
 }
 
 # Criação de uma resposta para o método GET
@@ -219,6 +231,9 @@ resource "aws_api_gateway_integration_response" "api_integration_response" {
   resource_id = aws_api_gateway_resource.api_resource.id
   http_method = aws_api_gateway_method.api_method.http_method
   status_code = aws_api_gateway_method_response.api_method_response.status_code
+
+  # Adicionando dependência explícita
+  depends_on = [aws_api_gateway_integration.api_integration]
 }
 
 # Criação de um deployment para o API Gateway
@@ -226,12 +241,4 @@ resource "aws_api_gateway_deployment" "api_deployment" {
   depends_on = [aws_api_gateway_integration.api_integration]
   rest_api_id = aws_api_gateway_rest_api.api.id
   stage_name  = "prod"
-}
-
-# Criação de uma permissão para o API Gateway invocar o ALB
-resource "aws_lambda_permission" "api_gateway_permission" {
-  statement_id  = "AllowExecutionFromAPIGateway"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lb.app_lb.arn
-  principal     = "apigateway.amazonaws.com"
 }
