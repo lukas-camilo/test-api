@@ -221,8 +221,8 @@ resource "aws_api_gateway_integration" "get_api_test_integration" {
   resource_id             = aws_api_gateway_resource.api_test_subresource.id
   http_method             = aws_api_gateway_method.get_api_test.http_method
   integration_http_method = "GET"
-  type                    = "HTTP" # ou "AWS_PROXY" se for Lambda
-  uri                     = "http://${aws_lb.app_lb.dns_name}/" # URL do ALB ou outro backend
+  type                    = "HTTP"                                      # ou "AWS_PROXY" se for Lambda
+  uri                     = "http://${aws_lb.app_lb.dns_name}/api/test" # URL do ALB ou outro backend
 
   request_templates = {
     "application/json" = "{\"statusCode\": 200}"
