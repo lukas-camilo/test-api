@@ -127,8 +127,17 @@ jobs:
         ECR_REPOSITORY: my-spring-native-app
         IMAGE_TAG: ${{ github.sha }}
       run: |
+        # Build the Docker image with the specific tag (using the commit SHA)
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        
+        # Push the image with the specific tag
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        
+        # Tag the image as 'latest'
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        
+        # Push the 'latest' tag
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
       working-directory: ./app
 
     - name: Deploy to Amazon ECS
@@ -136,6 +145,5 @@ jobs:
         AWS_REGION: us-east-1
         CLUSTER_NAME: my-ecs-cluster
         SERVICE_NAME: my-app-service
-        IMAGE_TAG: ${{ github.sha }}
       run: |
         aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --force-new-deployment --region $AWS_REGION
