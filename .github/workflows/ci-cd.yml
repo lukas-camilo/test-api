@@ -19,7 +19,7 @@ jobs:
         id: get-destroy-output
         run: |
           destroy=$(yq e '.destroy' config.yaml)
-          echo "$destroy"
+          echo "Valor de destroy: $destroy"
           echo "::set-output name=destroy::$destroy"
 
   build:
