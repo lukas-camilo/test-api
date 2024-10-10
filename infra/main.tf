@@ -85,6 +85,18 @@ resource "aws_ecr_repository" "app" {
   name = "my-spring-native-app"
 }
 
+################################ CloudWatch ################################
+
+resource "aws_cloudwatch_log_group" "my_app_log_group" {
+  name              = "my-app-log-group"
+  retention_in_days = 1
+}
+
+resource "aws_cloudwatch_log_stream" "my_app_log_stream" {
+  name           = "my-app-log-stream"
+  log_group_name = aws_cloudwatch_log_group.my_app_log_group.name
+}
+
 ################################ ECS ################################
 
 # Criação de um Security Group para o ECS
@@ -132,11 +144,23 @@ resource "aws_ecs_task_definition" "app" {
           hostPort      = 8080
         }
       ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.my_app_log_group.name
+          "awslogs-region"        = "us-east-1"
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
     }
   ])
 
   # Adicionando dependência explícita
-  depends_on = [aws_ecr_repository.app, aws_iam_role.ecs_task_execution_role]
+  depends_on = [
+    aws_ecr_repository.app, 
+    aws_iam_role.ecs_task_execution_role, 
+    aws_cloudwatch_log_group.my_app_log_group
+  ]
 }
 
 # Criação de um serviço ECS
@@ -163,9 +187,12 @@ resource "aws_ecs_service" "app" {
   depends_on = [aws_lb_target_group.app_tg, aws_ecs_task_definition.app]
 }
 
+################################ IAM ################################
+
 # Criação de uma role para o ECS
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "ecsTaskExecutionRole"
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -178,6 +205,30 @@ resource "aws_iam_role" "ecs_task_execution_role" {
       }
     ]
   })
+}
+
+resource "aws_iam_policy" "cloudwatch_logs_policy" {
+  name = "CloudWatchLogsPolicy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = aws_iam_policy.cloudwatch_logs_policy.arn
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
