@@ -187,15 +187,15 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 
 ################################ Cognito ################################
 
-resource "aws_cognito_user_pool" "user_pool" {
-  name = "my-user-pool"
-}
+# resource "aws_cognito_user_pool" "user_pool" {
+#   name = "my-user-pool"
+# }
 
-# Cognito User Pool Client
-resource "aws_cognito_user_pool_client" "user_pool_client" {
-  name         = "my-user-pool-client"
-  user_pool_id = aws_cognito_user_pool.user_pool.id
-}
+# # Cognito User Pool Client
+# resource "aws_cognito_user_pool_client" "user_pool_client" {
+#   name         = "my-user-pool-client"
+#   user_pool_id = aws_cognito_user_pool.user_pool.id
+# }
 
 ################################ API Gateway ################################
 
@@ -206,13 +206,13 @@ resource "aws_api_gateway_rest_api" "api" {
 }
 
 # API Gateway Authorizer
-resource "aws_api_gateway_authorizer" "cognito_authorizer" {
-  name                   = "CognitoAuthorizer"
-  rest_api_id            = aws_api_gateway_rest_api.api.id
-  type                   = "COGNITO_USER_POOLS"
-  provider_arns          = [aws_cognito_user_pool.user_pool.arn]
-  identity_source        = "method.request.header.Authorization"
-}
+# resource "aws_api_gateway_authorizer" "cognito_authorizer" {
+#   name                   = "CognitoAuthorizer"
+#   rest_api_id            = aws_api_gateway_rest_api.api.id
+#   type                   = "COGNITO_USER_POOLS"
+#   provider_arns          = [aws_cognito_user_pool.user_pool.arn]
+#   identity_source        = "method.request.header.Authorization"
+# }
 
 # Criação do recurso /api/test no API Gateway
 resource "aws_api_gateway_resource" "api_test_resource" {
@@ -233,8 +233,9 @@ resource "aws_api_gateway_method" "get_api_test" {
   rest_api_id   = aws_api_gateway_rest_api.api.id
   resource_id   = aws_api_gateway_resource.api_test_subresource.id
   http_method   = "GET"
-  authorization = "COGNITO_USER_POOLS"
-  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
+  authorization = "NONE"
+  # authorization = "COGNITO_USER_POOLS"
+  # authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
 }
 
 # Integração do método GET com um backend (por exemplo, um ALB ou Lambda)
@@ -280,21 +281,21 @@ resource "aws_api_gateway_deployment" "api_deployment" {
   stage_name  = "prod"
 }
 
-################################ ROUTE 53 ################################
+# ################################ ROUTE 53 ################################
 
-# Obter a zona hospedada no Route 53
-data "aws_route53_zone" "my_zone" {
-  name = "lucas-tech.com"  # Substitua pelo seu domínio
-}
+# # Obter a zona hospedada no Route 53
+# data "aws_route53_zone" "my_zone" {
+#   name = "lucas-tech.com"  # Substitua pelo seu domínio
+# }
 
-# Criar um registro CNAME no Route 53
-resource "aws_route53_record" "api_gateway_cname" {
-  zone_id = data.aws_route53_zone.my_zone.zone_id
-  name    = "api.lucas-tech.com"  # Subdomínio que você deseja criar
-  type    = "CNAME"
-  ttl     = 300                   # Tempo de vida do registro DNS em segundos
-  records = [aws_api_gateway_deployment.api_deployment.invoke_url]
+# # Criar um registro CNAME no Route 53
+# resource "aws_route53_record" "api_gateway_cname" {
+#   zone_id = data.aws_route53_zone.my_zone.zone_id
+#   name    = "api.lucas-tech.com"  # Subdomínio que você deseja criar
+#   type    = "CNAME"
+#   ttl     = 300                   # Tempo de vida do registro DNS em segundos
+#   records = [aws_api_gateway_deployment.api_deployment.invoke_url]
 
-  # Adicionando dependência explícita
-  depends_on = [aws_api_gateway_deployment.api_deployment]
-}
+#   # Adicionando dependência explícita
+#   depends_on = [aws_api_gateway_deployment.api_deployment]
+# }
