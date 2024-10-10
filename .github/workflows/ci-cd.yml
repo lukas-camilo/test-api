@@ -188,6 +188,17 @@ jobs:
         run: terraform init
         working-directory: ./infra
 
+      - name: Delete all images from ECR repository
+        run: |
+          aws ecr list-images --repository-name my-spring-native-app --query 'imageIds[*]' --output json | \
+          jq -c '.[]' | while read imageId; do
+            aws ecr batch-delete-image --repository-name my-spring-native-app --image-ids "$imageId"
+          done
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
         working-directory: ./infra
