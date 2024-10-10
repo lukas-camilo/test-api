@@ -287,23 +287,14 @@ data "aws_route53_zone" "my_zone" {
   name = "lucas-tech.com"  # Substitua pelo seu domínio
 }
 
-# Obter o estágio do API Gateway
-data "aws_api_gateway_stage" "my_stage" {
-  rest_api_id = aws_api_gateway_rest_api.api.id  # Referência ao API Gateway criado anteriormente
-  stage_name  = "prod"
-
-  # Adicionando dependência explícita
-  depends_on = [aws_api_gateway_deployment.api_deployment]
-}
-
 # Criar um registro CNAME no Route 53
 resource "aws_route53_record" "api_gateway_cname" {
   zone_id = data.aws_route53_zone.my_zone.zone_id
   name    = "api.lucas-tech.com"  # Subdomínio que você deseja criar
   type    = "CNAME"
-  ttl     = 300  # Tempo de vida do registro DNS em segundos
-  records = [data.aws_api_gateway_stage.my_stage.invoke_url]
+  ttl     = 300                   # Tempo de vida do registro DNS em segundos
+  records = [aws_api_gateway_deployment.api_deployment.invoke_url]
 
   # Adicionando dependência explícita
-  depends_on = [data.aws_api_gateway_stage.my_stage]
+  depends_on = [aws_api_gateway_deployment.api_deployment]
 }
